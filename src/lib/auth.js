@@ -22,7 +22,7 @@ export const auth = betterAuth({
     maxPasswordLength: 128,
   },
 
-  trustedOrigins: process.env.NEXT_PUBLIC_APP_URL
-    ? [process.env.NEXT_PUBLIC_APP_URL]
+  trustedOrigins: process.env._PUBLIC_APP_URL
+    ? [process.env._PUBLIC_APP_URL]
     : [],
 });

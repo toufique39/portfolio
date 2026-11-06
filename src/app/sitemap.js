@@ -2,7 +2,7 @@ import { cacheLife } from "next/cache";
 import { getPublicProjects } from "@/lib/services/public-portfolio.service";
 
 const siteUrl = (
-  process.env.NEXT_PUBLIC_APP_URL ||
+  process.env._PUBLIC_APP_URL ||
   "http://localhost:10000"
 ).replace(/\/$/, "");
 

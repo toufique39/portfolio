@@ -2,7 +2,7 @@ import './globals.css';
 
 export const metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:10000"
+    process.env._PUBLIC_APP_URL || "http://localhost:10000"
   ),
 
   title: {
