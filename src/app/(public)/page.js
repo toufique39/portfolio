@@ -1,7 +1,20 @@
+
+import { Suspense } from "react";
+import PublicHome from "@/components/portfolio/PublicHome";
+
+function LoadingPortfolio() {
+  return (
+    <main className="flex min-h-screen items-center justify-center">
+      <p>Loading Toufique Ahmed portfolio...</p>
+    </main>
+  );
+}
+
 export default function HomePage() {
   return (
-    <main>
-      <h1>Home</h1>
-    </main>
+    <Suspense fallback={<LoadingPortfolio />}>
+      
+      <PublicHome />
+    </Suspense>
   );
 }

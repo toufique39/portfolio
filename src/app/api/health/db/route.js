@@ -1,10 +1,13 @@
 
+import { io } from "next/cache";
 import { getDb } from "@/lib/db";
 
 // NOTE: `export const runtime` is not supported when `cacheComponents` is
 // enabled in next.config.mjs — routes always use the default Node.js runtime.
 
+// Ping the database per request, never during build-time prerendering.
 export async function GET() {
+  await io();
   try {
     const db = await getDb();
 

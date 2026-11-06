@@ -1,10 +1,13 @@
 
+import { io } from "next/cache";
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin-auth";
 
-export const runtime = "nodejs";
-
+// Exclude the session read from prerender probing — this route is
+// always request-time, and `headers()` inside the try/catch below
+// cannot reject during a build-time probe of a suspended route.
 export async function GET() {
+  await io();
   try {
     const session = await getAdminSession();
 
