@@ -426,7 +426,7 @@ export default function ProjectsManager({ initialProjects = [] }) {
             </label>
 
             <p className="mt-1 text-xs text-slate-500">
-              Pick an image from your device (JPEG, PNG or WebP, max 5 MB) or
+              Pick an image from your device (JPEG, PNG or WebP, max 20 MB) or
               paste an image URL below.
             </p>
 
@@ -482,7 +482,7 @@ export default function ProjectsManager({ initialProjects = [] }) {
 
             <p className="mt-1 text-xs text-slate-500">
               Upload multiple screenshots from your device; uploaded URLs are
-              appended below. JPEG, PNG or WebP, max 5 MB each.
+              appended below. JPEG, PNG or WebP, max 20 MB each.
             </p>
 
             <textarea

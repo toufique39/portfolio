@@ -189,7 +189,7 @@ export default function ProfileForm({ initialData }) {
         />
 
         <p className="text-xs text-gray-500">
-          JPEG, PNG or WebP. Maximum size: 5 MB.
+          JPEG, PNG or WebP. Maximum size: 20 MB.
         </p>
 
         {uploading.image && (

@@ -3,7 +3,7 @@ import { getAdminSession } from "@/lib/admin-auth";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 
 
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
+const MAX_IMAGE_SIZE = 20 * 1024 * 1024; // 20 MB
 const MAX_RESUME_SIZE = 10 * 1024 * 1024; // 10 MB
 
 function jsonResponse(data, status = 200) {
