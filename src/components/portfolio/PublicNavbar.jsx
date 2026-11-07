@@ -58,7 +58,7 @@ export default function PublicNavbar({
                 <path d="M12 15V3" />
               </svg>
 
-              Download CV
+              Download Resume PDF
             </a>
           )}
 
