@@ -3,6 +3,8 @@
 
 import { useState } from "react";
 
+import { notifyError, notifySuccess } from "@/lib/notify";
+
 const initialForm = {
   platform: "",
   label: "",
@@ -18,8 +20,6 @@ export default function SocialLinksManager({ initialLinks = [] }) {
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
 
   function handleChange(event) {
     const { name, value, type, checked } = event.target;
@@ -47,9 +47,6 @@ export default function SocialLinksManager({ initialLinks = [] }) {
       isPublished: link.isPublished ?? true,
     });
 
-    setMessage("");
-    setError("");
-
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -57,8 +54,6 @@ export default function SocialLinksManager({ initialLinks = [] }) {
     event.preventDefault();
 
     setLoading(true);
-    setMessage("");
-    setError("");
 
     try {
       const payload = {
@@ -94,10 +89,16 @@ export default function SocialLinksManager({ initialLinks = [] }) {
         setLinks((prev) => [...prev, result.link]);
       }
 
-      setMessage(result.message);
+      notifySuccess(
+        editingId ? "Social link updated" : "Social link created",
+        result.message
+      );
       resetForm();
     } catch (err) {
-      setError(err.message || "Failed to save social link.");
+      notifyError(
+        "Failed to save social link",
+        err.message || "Failed to save social link."
+      );
     } finally {
       setLoading(false);
     }
@@ -111,8 +112,6 @@ export default function SocialLinksManager({ initialLinks = [] }) {
     if (!confirmed) return;
 
     setDeletingId(id);
-    setError("");
-    setMessage("");
 
     try {
       const response = await fetch("/api/admin/social-links", {
@@ -137,9 +136,12 @@ export default function SocialLinksManager({ initialLinks = [] }) {
         resetForm();
       }
 
-      setMessage(result.message);
+      notifySuccess("Social link deleted", result.message);
     } catch (err) {
-      setError(err.message || "Failed to delete social link.");
+      notifyError(
+        "Failed to delete social link",
+        err.message || "Failed to delete social link."
+      );
     } finally {
       setDeletingId(null);
     }
@@ -164,19 +166,6 @@ export default function SocialLinksManager({ initialLinks = [] }) {
           Manage your public social media and professional profile links.
         </p>
       </div>
-
-      {/* Messages */}
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
-      {message && (
-        <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
-          {message}
-        </div>
-      )}
 
       {/* Add / Edit Form */}
       <form

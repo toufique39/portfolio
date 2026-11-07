@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2, LockKeyhole } from "lucide-react";
 
 import { authClient } from "@/lib/auth-client";
+import { notifyError, notifySuccess } from "@/lib/notify";
 
 export default function AdminLoginForm() {
   const router = useRouter();
@@ -14,12 +15,10 @@ export default function AdminLoginForm() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const handleLogin = async (event) => {
     event.preventDefault();
 
-    setError("");
     setLoading(true);
 
     try {
@@ -30,15 +29,23 @@ export default function AdminLoginForm() {
       });
 
       if (error) {
-        setError(error.message || "Invalid email or password.");
+        notifyError(
+          "Login failed",
+          error.message || "Invalid email or password."
+        );
         return;
       }
+
+      notifySuccess("Welcome back", "You have been logged in successfully.");
 
       router.replace("/admin/dashboard");
       router.refresh();
     } catch (err) {
       console.error("Admin login failed:", err);
-      setError("Something went wrong. Please try again.");
+      notifyError(
+        "Login failed",
+        "Something went wrong. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -96,15 +103,6 @@ export default function AdminLoginForm() {
           </button>
         </div>
       </div>
-
-      {error && (
-        <div
-          role="alert"
-          className="rounded-lg bg-red-50 p-3 text-sm text-red-700"
-        >
-          {error}
-        </div>
-      )}
 
       <button
         type="submit"

@@ -3,6 +3,8 @@
 
 import { useState } from "react";
 
+import { notifyError, notifySuccess } from "@/lib/notify";
+
 const initialForm = {
   institution: "",
   degree: "",
@@ -21,8 +23,6 @@ export default function EducationManager({ initialEducations = [] }) {
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
 
   const inputClass =
     "w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
@@ -59,9 +59,6 @@ export default function EducationManager({ initialEducations = [] }) {
       sortOrder: education.sortOrder ?? 0,
     });
 
-    setMessage("");
-    setError("");
-
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -69,8 +66,6 @@ export default function EducationManager({ initialEducations = [] }) {
     event.preventDefault();
 
     setLoading(true);
-    setMessage("");
-    setError("");
 
     try {
       const payload = {
@@ -107,10 +102,16 @@ export default function EducationManager({ initialEducations = [] }) {
         setEducations((prev) => [...prev, result.education]);
       }
 
-      setMessage(result.message);
+      notifySuccess(
+        editingId ? "Education updated" : "Education record created",
+        result.message
+      );
       resetForm();
     } catch (err) {
-      setError(err.message || "Something went wrong.");
+      notifyError(
+        "Failed to save education",
+        err.message || "Something went wrong."
+      );
     } finally {
       setLoading(false);
     }
@@ -122,8 +123,6 @@ export default function EducationManager({ initialEducations = [] }) {
     }
 
     setDeletingId(id);
-    setError("");
-    setMessage("");
 
     try {
       const response = await fetch("/api/admin/educations", {
@@ -146,9 +145,12 @@ export default function EducationManager({ initialEducations = [] }) {
 
       if (editingId === id) resetForm();
 
-      setMessage(result.message);
+      notifySuccess("Education record deleted", result.message);
     } catch (err) {
-      setError(err.message || "Something went wrong.");
+      notifyError(
+        "Failed to delete education",
+        err.message || "Something went wrong."
+      );
     } finally {
       setDeletingId(null);
     }
@@ -164,18 +166,6 @@ export default function EducationManager({ initialEducations = [] }) {
           Manage your academic qualifications and education history.
         </p>
       </div>
-
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
-      {message && (
-        <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
-          {message}
-        </div>
-      )}
 
       <form
         onSubmit={handleSubmit}

@@ -3,6 +3,8 @@
 
 import { useState } from "react";
 
+import { notifyError, notifySuccess } from "@/lib/notify";
+
 const categories = [
   "frontend",
   "backend",
@@ -31,8 +33,6 @@ export default function SkillsManager({ initialSkills = [] }) {
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
 
   const inputClass =
     "w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
@@ -68,9 +68,6 @@ export default function SkillsManager({ initialSkills = [] }) {
       sortOrder: skill.sortOrder ?? 0,
     });
 
-    setMessage("");
-    setError("");
-
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -78,8 +75,6 @@ export default function SkillsManager({ initialSkills = [] }) {
     event.preventDefault();
 
     setLoading(true);
-    setMessage("");
-    setError("");
 
     try {
       const payload = {
@@ -116,10 +111,16 @@ export default function SkillsManager({ initialSkills = [] }) {
         setSkills((prev) => [...prev, result.skill]);
       }
 
-      setMessage(result.message);
+      notifySuccess(
+        editingId ? "Skill updated" : "Skill created",
+        result.message
+      );
       resetForm();
     } catch (err) {
-      setError(err.message || "Something went wrong.");
+      notifyError(
+        "Failed to save skill",
+        err.message || "Something went wrong."
+      );
     } finally {
       setLoading(false);
     }
@@ -133,8 +134,6 @@ export default function SkillsManager({ initialSkills = [] }) {
     if (!confirmed) return;
 
     setDeletingId(id);
-    setError("");
-    setMessage("");
 
     try {
       const response = await fetch("/api/admin/skills", {
@@ -159,9 +158,12 @@ export default function SkillsManager({ initialSkills = [] }) {
         resetForm();
       }
 
-      setMessage(result.message);
+      notifySuccess("Skill deleted", result.message);
     } catch (err) {
-      setError(err.message || "Something went wrong.");
+      notifyError(
+        "Failed to delete skill",
+        err.message || "Something went wrong."
+      );
     } finally {
       setDeletingId(null);
     }
@@ -179,19 +181,6 @@ export default function SkillsManager({ initialSkills = [] }) {
           Add, organize and manage your technical skills.
         </p>
       </div>
-
-      {/* Messages */}
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
-      {message && (
-        <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
-          {message}
-        </div>
-      )}
 
       {/* Form */}
       <form

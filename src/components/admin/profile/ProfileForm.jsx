@@ -4,6 +4,9 @@ import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
+import { notifyError, notifySuccess } from "@/lib/notify";
+import { uploadAdminFile } from "@/lib/upload";
+
 export default function ProfileForm({ initialData }) {
   const router = useRouter();
 
@@ -29,8 +32,6 @@ export default function ProfileForm({ initialData }) {
   });
 
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -47,36 +48,20 @@ export default function ProfileForm({ initialData }) {
     const isImage = kind === "profile-image";
     const stateKey = isImage ? "image" : "resume";
 
-    setError("");
-    setMessage("");
-
     setUploading((prev) => ({
       ...prev,
       [stateKey]: true,
     }));
 
     try {
-      const data = new FormData();
-      data.append("file", file);
-      data.append("kind", kind);
-
-      const response = await fetch("/api/admin/upload", {
-        method: "POST",
-        body: data,
-      });
-
-      const result = await response.json().catch(() => null);
-
-      if (!response.ok || !result?.success) {
-        throw new Error(result?.message || "Upload failed.");
-      }
+      const asset = await uploadAdminFile(file, kind);
 
       if (isImage) {
         setFormData((prev) => ({
           ...prev,
           profileImage: {
-            url: result.asset.url,
-            publicId: result.asset.publicId,
+            url: asset.url,
+            publicId: asset.publicId,
             alt: prev.name
               ? `${prev.name} profile photo`
               : "Profile photo",
@@ -85,15 +70,21 @@ export default function ProfileForm({ initialData }) {
       } else {
         setFormData((prev) => ({
           ...prev,
-          resumeUrl: result.asset.url,
+          resumeUrl: asset.url,
         }));
       }
 
-      setMessage(
-        `${isImage ? "Profile photo" : "Resume"} uploaded successfully. Save your profile to keep the changes.`
+      notifySuccess(
+        isImage
+          ? "Profile photo uploaded"
+          : "Resume uploaded",
+        "Save your profile to keep the changes."
       );
     } catch (err) {
-      setError(err.message || "Something went wrong during upload.");
+      notifyError(
+        isImage ? "Photo upload failed" : "Resume upload failed",
+        err.message || "Something went wrong during upload."
+      );
     } finally {
       setUploading((prev) => ({
         ...prev,
@@ -106,8 +97,6 @@ export default function ProfileForm({ initialData }) {
     event.preventDefault();
 
     setSaving(true);
-    setError("");
-    setMessage("");
 
     try {
       const payload = {
@@ -137,12 +126,18 @@ export default function ProfileForm({ initialData }) {
         throw new Error(result?.message || "Profile update failed.");
       }
 
-      setMessage("Profile saved successfully.");
+      notifySuccess(
+        "Profile saved",
+        "Your profile has been updated successfully."
+      );
 
       // Sync the server-rendered profile data with the saved document.
       router.refresh();
     } catch (err) {
-      setError(err.message || "Something went wrong.");
+      notifyError(
+        "Profile update failed",
+        err.message || "Something went wrong."
+      );
     } finally {
       setSaving(false);
     }
@@ -161,18 +156,6 @@ export default function ProfileForm({ initialData }) {
           Manage your personal and professional information.
         </p>
       </div>
-
-      {error && (
-        <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
-          {error}
-        </p>
-      )}
-
-      {message && (
-        <p className="rounded-lg bg-green-50 p-3 text-sm text-green-700">
-          {message}
-        </p>
-      )}
 
       {/* Profile Photo */}
       <section className="space-y-3 rounded-xl border p-4">

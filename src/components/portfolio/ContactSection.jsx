@@ -3,6 +3,8 @@
 
 import { useState } from "react";
 
+import { notifyError, notifySuccess } from "@/lib/notify";
+
 const initialForm = {
   name: "",
   email: "",
@@ -14,8 +16,6 @@ const initialForm = {
 export default function ContactSection({ profile }) {
   const [formData, setFormData] = useState(initialForm);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
 
   const inputClass =
     "w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
@@ -36,8 +36,6 @@ export default function ContactSection({ profile }) {
     event.preventDefault();
 
     setLoading(true);
-    setMessage("");
-    setError("");
 
     try {
       const response = await fetch("/api/contact", {
@@ -54,13 +52,15 @@ export default function ContactSection({ profile }) {
         throw new Error(result.message || "Failed to send message.");
       }
 
-      setMessage(
+      notifySuccess(
+        "Message sent",
         result.message || "Your message has been received."
       );
 
       setFormData(initialForm);
     } catch (err) {
-      setError(
+      notifyError(
+        "Failed to send message",
         err.message || "Something went wrong. Please try again."
       );
     } finally {
@@ -171,24 +171,6 @@ export default function ContactSection({ profile }) {
             <h3 className="mb-6 text-xl font-bold text-slate-900">
               Send Me a Message
             </h3>
-
-            {error && (
-              <div
-                role="alert"
-                className="mb-5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
-              >
-                {error}
-              </div>
-            )}
-
-            {message && (
-              <div
-                role="status"
-                className="mb-5 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700"
-              >
-                {message}
-              </div>
-            )}
 
             <form onSubmit={handleSubmit} className="space-y-5">
 

@@ -77,7 +77,9 @@ export async function POST(request) {
     if (
       !file ||
       typeof file.arrayBuffer !== "function" ||
-      !["profile-image", "resume"].includes(kind)
+      !["profile-image", "resume", "cover-image", "gallery-image"].includes(
+        kind
+      )
     ) {
       return jsonResponse(
         { success: false, message: "Invalid upload request." },
@@ -124,17 +126,37 @@ export async function POST(request) {
     }
 
     // 5. Upload to Cloudinary
-    const folder = isResume
-      ? "toufique-portfolio/resumes"
-      : "toufique-portfolio/profile";
+    let result;
 
- const result = await uploadToCloudinary(buffer, {
-  folder: "toufique-portfolio/resumes",
-  public_id: `resume-${randomUUID()}.pdf`,
-  resource_type: "raw",
-  type: "upload",
-  overwrite: false,
-});
+    if (isResume) {
+      result = await uploadToCloudinary(buffer, {
+        folder: "toufique-portfolio/resumes",
+        public_id: `resume-${randomUUID()}.pdf`,
+        resource_type: "raw",
+        type: "upload",
+        overwrite: false,
+      });
+    } else {
+      const folder =
+        kind === "profile-image"
+          ? "toufique-portfolio/profile"
+          : "toufique-portfolio/projects";
+
+      const extension =
+        file.type === "image/png"
+          ? "png"
+          : file.type === "image/webp"
+            ? "webp"
+            : "jpg";
+
+      result = await uploadToCloudinary(buffer, {
+        folder,
+        public_id: `${kind}-${randomUUID()}.${extension}`,
+        resource_type: "image",
+        type: "upload",
+        overwrite: false,
+      });
+    }
 
     // 6. Return uploaded asset information
     return jsonResponse({

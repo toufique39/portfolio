@@ -3,6 +3,8 @@
 
 import { useState } from "react";
 import { resolveImageUrl } from "@/lib/utils";
+import { notifyError, notifySuccess } from "@/lib/notify";
+import { uploadAdminFile } from "@/lib/upload";
 
 const initialForm = {
   title: "",
@@ -57,8 +59,8 @@ export default function ProjectsManager({ initialProjects = [] }) {
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [uploadingGallery, setUploadingGallery] = useState(false);
 
   const inputClass =
     "w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
@@ -83,18 +85,86 @@ export default function ProjectsManager({ initialProjects = [] }) {
   function handleEdit(project) {
     setEditingId(project.id);
     setFormData(toFormData(project));
-    setMessage("");
-    setError("");
 
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function handleCoverUpload(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) return;
+
+    setUploadingCover(true);
+
+    try {
+      const asset = await uploadAdminFile(file, "cover-image");
+
+      setFormData((prev) => ({
+        ...prev,
+        coverImageUrl: asset.url,
+      }));
+
+      notifySuccess(
+        "Cover image uploaded",
+        "Upload a different file or paste a URL to replace it."
+      );
+    } catch (err) {
+      notifyError(
+        "Cover image upload failed",
+        err.message || "Something went wrong during upload."
+      );
+    } finally {
+      setUploadingCover(false);
+    }
+  }
+
+  async function handleGalleryUpload(event) {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+
+    if (files.length === 0) return;
+
+    setUploadingGallery(true);
+
+    const urls = [];
+    const failures = [];
+
+    try {
+      for (const file of files) {
+        try {
+          const asset = await uploadAdminFile(file, "gallery-image");
+
+          urls.push(asset.url);
+        } catch (err) {
+          failures.push(`${file.name}: ${err.message || "Upload failed"}`);
+        }
+      }
+
+      if (urls.length > 0) {
+        setFormData((prev) => ({
+          ...prev,
+          galleryUrls: [...toArray(prev.galleryUrls), ...urls].join("\n"),
+        }));
+
+        notifySuccess(
+          "Gallery images uploaded",
+          `${urls.length} ${urls.length === 1 ? "image" : "images"} added to the gallery URLs.`
+        );
+      }
+
+      if (failures.length > 0) {
+        notifyError("Some gallery uploads failed", failures.join(" · "));
+      }
+    } finally {
+      setUploadingGallery(false);
+    }
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
 
     setLoading(true);
-    setError("");
-    setMessage("");
 
     try {
       const galleryUrls = toArray(formData.galleryUrls);
@@ -149,10 +219,16 @@ export default function ProjectsManager({ initialProjects = [] }) {
         setProjects((prev) => [...prev, result.project]);
       }
 
-      setMessage(result.message);
+      notifySuccess(
+        editingId ? "Project updated" : "Project created",
+        result.message
+      );
       resetForm();
     } catch (err) {
-      setError(err.message || "Something went wrong.");
+      notifyError(
+        "Failed to save project",
+        err.message || "Something went wrong."
+      );
     } finally {
       setLoading(false);
     }
@@ -164,8 +240,6 @@ export default function ProjectsManager({ initialProjects = [] }) {
     }
 
     setDeletingId(id);
-    setError("");
-    setMessage("");
 
     try {
       const response = await fetch("/api/admin/projects", {
@@ -188,9 +262,12 @@ export default function ProjectsManager({ initialProjects = [] }) {
 
       if (editingId === id) resetForm();
 
-      setMessage(result.message);
+      notifySuccess("Project deleted", result.message);
     } catch (err) {
-      setError(err.message || "Something went wrong.");
+      notifyError(
+        "Failed to delete project",
+        err.message || "Something went wrong."
+      );
     } finally {
       setDeletingId(null);
     }
@@ -206,18 +283,6 @@ export default function ProjectsManager({ initialProjects = [] }) {
           Create and manage your portfolio projects.
         </p>
       </div>
-
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
-      {message && (
-        <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
-          {message}
-        </div>
-      )}
 
       <form
         onSubmit={handleSubmit}
@@ -343,7 +408,28 @@ export default function ProjectsManager({ initialProjects = [] }) {
           </div>
 
           <div className="sm:col-span-2">
-            <label className={labelClass}>Cover Image URL *</label>
+            <label className={labelClass}>Cover Image *</label>
+
+            <label
+              className={`mt-1 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 ${
+                uploadingCover ? "pointer-events-none opacity-60" : ""
+              }`}
+            >
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                disabled={uploadingCover}
+                onChange={handleCoverUpload}
+                className="hidden"
+              />
+              {uploadingCover ? "Uploading..." : "Upload from device"}
+            </label>
+
+            <p className="mt-1 text-xs text-slate-500">
+              Pick an image from your device (JPEG, PNG or WebP, max 5 MB) or
+              paste an image URL below.
+            </p>
+
             <input
               type="url"
               name="coverImageUrl"
@@ -351,21 +437,61 @@ export default function ProjectsManager({ initialProjects = [] }) {
               onChange={handleChange}
               placeholder="https://example.com/project-image.png"
               required
-              className={inputClass}
+              className={`${inputClass} mt-2`}
             />
+
+            {formData.coverImageUrl && (
+              <div className="mt-3 flex items-center gap-3">
+                {resolveImageUrl(formData.coverImageUrl) ? (
+                  <img
+                    src={resolveImageUrl(formData.coverImageUrl)}
+                    alt="Cover image preview"
+                    className="h-20 w-32 rounded-lg border border-slate-200 object-cover"
+                  />
+                ) : (
+                  <div className="flex h-20 w-32 items-center justify-center rounded-lg border border-dashed border-slate-300 text-center text-xs text-slate-400">
+                    Not a valid image URL
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="sm:col-span-2">
             <label className={labelClass}>
-              Gallery Image URLs (one URL per line)
+              Gallery Images (one URL per line)
             </label>
+
+            <label
+              className={`mt-1 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-blue-600 px-4 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-50 ${
+                uploadingGallery ? "pointer-events-none opacity-60" : ""
+              }`}
+            >
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                disabled={uploadingGallery}
+                onChange={handleGalleryUpload}
+                className="hidden"
+              />
+              {uploadingGallery
+                ? "Uploading..."
+                : "Upload images from device"}
+            </label>
+
+            <p className="mt-1 text-xs text-slate-500">
+              Upload multiple screenshots from your device; uploaded URLs are
+              appended below. JPEG, PNG or WebP, max 5 MB each.
+            </p>
+
             <textarea
               name="galleryUrls"
               value={formData.galleryUrls}
               onChange={handleChange}
               rows={3}
               placeholder="https://example.com/screenshot-1.png"
-              className={inputClass}
+              className={`${inputClass} mt-2`}
             />
           </div>
 

@@ -6,21 +6,23 @@ import { useRouter } from "next/navigation";
 import { LogOut, Loader2 } from "lucide-react";
 
 import { authClient } from "@/lib/auth-client";
+import { notifyError } from "@/lib/notify";
 
 export default function LogoutButton() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const handleLogout = async () => {
     setLoading(true);
-    setError("");
 
     try {
       const { error } = await authClient.signOut();
 
       if (error) {
-        setError(error.message || "Logout failed.");
+        notifyError(
+          "Logout failed",
+          error.message || "Unable to logout. Please try again."
+        );
         return;
       }
 
@@ -28,7 +30,10 @@ export default function LogoutButton() {
       router.refresh();
     } catch (err) {
       console.error("Logout failed:", err);
-      setError("Unable to logout. Please try again.");
+      notifyError(
+        "Logout failed",
+        "Unable to logout. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -50,12 +55,6 @@ export default function LogoutButton() {
 
         {loading ? "Signing out..." : "Logout"}
       </button>
-
-      {error && (
-        <p role="alert" className="mt-2 text-sm text-red-600">
-          {error}
-        </p>
-      )}
     </div>
   );
 }
