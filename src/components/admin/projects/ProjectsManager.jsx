@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { resolveImageUrl } from "@/lib/utils";
 import { notifyError, notifySuccess } from "@/lib/notify";
+import { handleAdminSessionExpired } from "@/lib/admin-session-client";
 import { uploadAdminFile } from "@/lib/upload";
 
 const initialForm = {
@@ -205,6 +206,11 @@ export default function ProjectsManager({ initialProjects = [] }) {
 
       const result = await response.json();
 
+      if (response.status === 401) {
+        handleAdminSessionExpired();
+        return;
+      }
+
       if (!response.ok || !result.success) {
         throw new Error(result.message || "Failed to save project.");
       }
@@ -251,6 +257,11 @@ export default function ProjectsManager({ initialProjects = [] }) {
       });
 
       const result = await response.json();
+
+      if (response.status === 401) {
+        handleAdminSessionExpired();
+        return;
+      }
 
       if (!response.ok || !result.success) {
         throw new Error(result.message || "Failed to delete project.");

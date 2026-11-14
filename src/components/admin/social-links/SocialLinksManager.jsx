@@ -4,6 +4,7 @@
 import { useState } from "react";
 
 import { notifyError, notifySuccess } from "@/lib/notify";
+import { handleAdminSessionExpired } from "@/lib/admin-session-client";
 
 const initialForm = {
   platform: "",
@@ -75,6 +76,11 @@ export default function SocialLinksManager({ initialLinks = [] }) {
 
       const result = await response.json();
 
+      if (response.status === 401) {
+        handleAdminSessionExpired();
+        return;
+      }
+
       if (!response.ok || !result.success) {
         throw new Error(result.message || "Something went wrong.");
       }
@@ -123,6 +129,11 @@ export default function SocialLinksManager({ initialLinks = [] }) {
       });
 
       const result = await response.json();
+
+      if (response.status === 401) {
+        handleAdminSessionExpired();
+        return;
+      }
 
       if (!response.ok || !result.success) {
         throw new Error(result.message || "Delete failed.");

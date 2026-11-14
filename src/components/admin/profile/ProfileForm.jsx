@@ -5,7 +5,9 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 import { notifyError, notifySuccess } from "@/lib/notify";
+import { handleAdminSessionExpired } from "@/lib/admin-session-client";
 import { uploadAdminFile } from "@/lib/upload";
+import { isCloudinaryUploadUrl, resolveImageUrl } from "@/lib/utils";
 
 export default function ProfileForm({ initialData }) {
   const router = useRouter();
@@ -32,6 +34,66 @@ export default function ProfileForm({ initialData }) {
   });
 
   const [saving, setSaving] = useState(false);
+  const [removing, setRemoving] = useState(null);
+
+  async function removeAsset(field) {
+    if (removing) return;
+
+    setRemoving(field);
+
+    // Abort a hung request so the form controls can never stay disabled.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
+    try {
+      const response = await fetch("/api/admin/profile", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ field }),
+        signal: controller.signal,
+      });
+
+      const result = await response.json().catch(() => null);
+
+      if (response.status === 401) {
+        handleAdminSessionExpired();
+        return;
+      }
+
+      if (!response.ok || !result?.success) {
+        throw new Error(
+          result?.message || "Removal failed. Please try again."
+        );
+      }
+
+      if (field === "profileImage") {
+        setFormData((prev) => ({ ...prev, profileImage: null }));
+      } else {
+        setFormData((prev) => ({ ...prev, resumeUrl: "" }));
+      }
+
+      notifySuccess(
+        field === "profileImage"
+          ? "Profile photo removed"
+          : "Resume removed",
+        "Save your profile to keep the changes."
+      );
+    } catch (err) {
+      notifyError(
+        field === "profileImage"
+          ? "Photo removal failed"
+          : "Resume removal failed",
+        err?.name === "AbortError"
+          ? "The request timed out. Please try again."
+          : err.message || "Something went wrong."
+      );
+    } finally {
+      clearTimeout(timeout);
+      setRemoving(null);
+    }
+  }
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -81,6 +143,11 @@ export default function ProfileForm({ initialData }) {
         "Save your profile to keep the changes."
       );
     } catch (err) {
+      if (err.status === 401) {
+        handleAdminSessionExpired();
+        return;
+      }
+
       notifyError(
         isImage ? "Photo upload failed" : "Resume upload failed",
         err.message || "Something went wrong during upload."
@@ -122,6 +189,11 @@ export default function ProfileForm({ initialData }) {
 
       const result = await response.json().catch(() => null);
 
+      if (response.status === 401) {
+        handleAdminSessionExpired();
+        return;
+      }
+
       if (!response.ok) {
         throw new Error(result?.message || "Profile update failed.");
       }
@@ -162,25 +234,39 @@ export default function ProfileForm({ initialData }) {
         
         <h3 className="font-semibold">Profile Photo</h3>
         <div className="relative h-64 w-64 sm:h-80 sm:w-80">
-          {formData.profileImage?.url ? (
-            <Image
-              src={formData.profileImage.url}
-              alt={formData.profileImage.alt || "Profile photo"}
-              fill
-              sizes="(max-width: 640px) 256px, 320px"
-              className="object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 text-sm text-gray-400">
-              No photo uploaded yet
-            </div>
-          )}
+          {(() => {
+            const previewUrl = resolveImageUrl(formData.profileImage?.url);
+
+            if (previewUrl) {
+              return isCloudinaryUploadUrl(previewUrl) ? (
+                <Image
+                  src={previewUrl}
+                  alt={formData.profileImage.alt || "Profile photo"}
+                  fill
+                  sizes="(max-width: 640px) 256px, 320px"
+                  className="object-cover"
+                />
+              ) : (
+                <img
+                  src={previewUrl}
+                  alt={formData.profileImage.alt || "Profile photo"}
+                  className="h-full w-full rounded-lg object-cover"
+                />
+              );
+            }
+
+            return (
+              <div className="flex h-full w-full items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 text-sm text-gray-400">
+                No photo uploaded yet
+              </div>
+            );
+          })()}
         </div>
 
         <input
           type="file"
           accept="image/jpeg,image/png,image/webp"
-          disabled={uploading.image}
+          disabled={uploading.image || removing === "profileImage"}
           onChange={(event) => {
             handleUpload(event.target.files?.[0], "profile-image");
             event.target.value = "";
@@ -194,6 +280,17 @@ export default function ProfileForm({ initialData }) {
 
         {uploading.image && (
           <p className="text-sm text-blue-600">Uploading photo...</p>
+        )}
+
+        {formData.profileImage?.url && (
+          <button
+            type="button"
+            onClick={() => removeAsset("profileImage")}
+            disabled={removing !== null || uploading.image}
+            className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {removing === "profileImage" ? "Removing..." : "Remove photo"}
+          </button>
         )}
       </section>
 
@@ -215,7 +312,7 @@ export default function ProfileForm({ initialData }) {
         <input
           type="file"
           accept="application/pdf"
-          disabled={uploading.resume}
+          disabled={uploading.resume || removing === "resumeUrl"}
           onChange={(event) => {
             handleUpload(event.target.files?.[0], "resume");
             event.target.value = "";
@@ -229,6 +326,17 @@ export default function ProfileForm({ initialData }) {
 
         {uploading.resume && (
           <p className="text-sm text-blue-600">Uploading resume...</p>
+        )}
+
+        {formData.resumeUrl && (
+          <button
+            type="button"
+            onClick={() => removeAsset("resumeUrl")}
+            disabled={removing !== null || uploading.resume}
+            className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {removing === "resumeUrl" ? "Removing..." : "Remove resume"}
+          </button>
         )}
       </section>
 
@@ -293,6 +401,7 @@ export default function ProfileForm({ initialData }) {
         type="submit"
         disabled={
           saving ||
+          removing !== null ||
           uploading.image ||
           uploading.resume
         }

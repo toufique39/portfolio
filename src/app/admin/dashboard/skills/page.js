@@ -5,6 +5,9 @@ import {
 } from "@/lib/portfolio-collections";
 import SkillsManager from "@/components/admin/skills/SkillsManager";
 
+// Data reads must block at request time (see dashboard layout note).
+export const instant = false;
+
 export default async function SkillsPage() {
   await requireAdmin();
 

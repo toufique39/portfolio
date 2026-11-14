@@ -4,6 +4,7 @@ import { getAdminSession } from "@/lib/admin-auth";
 import { profileSchema } from "@/lib/portfolio-schemas";
 import {
   getProfile,
+  unsetProfileFields,
   upsertProfile,
 } from "@/lib/services/profile.service";
 
@@ -56,6 +57,57 @@ export async function GET() {
     console.error("Get profile error:", error);
 
     return serverError("Failed to fetch profile");
+  }
+}
+
+// Profile fields the admin is allowed to remove via DELETE.
+const REMOVABLE_FIELDS = ["profileImage", "resumeUrl"];
+
+export async function DELETE(request) {
+  try {
+    const session = await getAdminSession();
+
+    if (!session) {
+      return unauthorized();
+    }
+
+    let body;
+
+    try {
+      body = await request.json();
+    } catch {
+      body = null;
+    }
+
+    const field = body?.field;
+
+    if (!REMOVABLE_FIELDS.includes(field)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Invalid field. Must be one of: ${REMOVABLE_FIELDS.join(", ")}.`,
+        },
+        { status: 400, headers: noStore }
+      );
+    }
+
+    const profile = await unsetProfileFields([field]);
+
+    return NextResponse.json(
+      {
+        success: true,
+        message:
+          field === "profileImage"
+            ? "Profile photo removed."
+            : "Resume removed.",
+        data: profile,
+      },
+      { headers: noStore }
+    );
+  } catch (error) {
+    console.error("Remove profile field error:", error);
+
+    return serverError("Failed to remove the profile item");
   }
 }
 

@@ -29,12 +29,22 @@ export async function upsertProfile(data) {
 }
 
 export async function deleteProfileImage() {
+  return unsetProfileFields(["profileImage"]);
+}
+
+// Remove one or more optional profile fields (e.g. `profileImage`,
+// `resumeUrl`) so the stored document no longer references them.
+export async function unsetProfileFields(fields) {
   const collection = await getCollection(COLLECTIONS.PROFILES);
+
+  const unset = Object.fromEntries(
+    fields.map((field) => [field, ""])
+  );
 
   await collection.updateOne(
     { _id: "main" },
     {
-      $unset: { profileImage: "" },
+      $unset: unset,
       $set: { updatedAt: new Date() },
     }
   );

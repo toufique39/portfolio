@@ -4,6 +4,7 @@
 import { useState } from "react";
 
 import { notifyError, notifySuccess } from "@/lib/notify";
+import { handleAdminSessionExpired } from "@/lib/admin-session-client";
 
 const initialForm = {
   institution: "",
@@ -88,6 +89,11 @@ export default function EducationManager({ initialEducations = [] }) {
 
       const result = await response.json();
 
+      if (response.status === 401) {
+        handleAdminSessionExpired();
+        return;
+      }
+
       if (!response.ok || !result.success) {
         throw new Error(result.message || "Failed to save education.");
       }
@@ -134,6 +140,11 @@ export default function EducationManager({ initialEducations = [] }) {
       });
 
       const result = await response.json();
+
+      if (response.status === 401) {
+        handleAdminSessionExpired();
+        return;
+      }
 
       if (!response.ok || !result.success) {
         throw new Error(result.message || "Failed to delete education.");

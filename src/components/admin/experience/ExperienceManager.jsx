@@ -4,6 +4,7 @@
 import { useState } from "react";
 
 import { notifyError, notifySuccess } from "@/lib/notify";
+import { handleAdminSessionExpired } from "@/lib/admin-session-client";
 
 const initialForm = {
   company: "",
@@ -118,6 +119,11 @@ export default function ExperienceManager({
 
       const result = await response.json();
 
+      if (response.status === 401) {
+        handleAdminSessionExpired();
+        return;
+      }
+
       if (!response.ok || !result.success) {
         throw new Error(
           result.message || "Failed to save experience."
@@ -170,6 +176,11 @@ export default function ExperienceManager({
       });
 
       const result = await response.json();
+
+      if (response.status === 401) {
+        handleAdminSessionExpired();
+        return;
+      }
 
       if (!response.ok || !result.success) {
         throw new Error(

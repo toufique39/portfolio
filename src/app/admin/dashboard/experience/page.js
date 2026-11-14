@@ -5,6 +5,9 @@ import {
 } from "@/lib/portfolio-collections";
 import ExperienceManager from "@/components/admin/experience/ExperienceManager";
 
+// Data reads must block at request time (see dashboard layout note).
+export const instant = false;
+
 export default async function ExperiencePage() {
   await requireAdmin();
 

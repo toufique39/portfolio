@@ -42,10 +42,16 @@ export function resolveImageUrl(url) {
 export const RESUME_FILE_NAME = "Toufique-Ahmed-Resume.pdf";
 
 // Builds a URL that serves the resume as a forced PDF download from any
-// page. Cloudinary assets get the `fl_attachment:filename` transformation
-// so the browser downloads (and names) the file even without a markup
-// `download` attribute; other hosts are returned unchanged. Returns null
-// when there is no usable resume URL.
+// page. Cloudinary *image* assets get the `fl_attachment:filename`
+// transformation so the browser downloads (and names) the file even
+// without a markup `download` attribute.
+//
+// Cloudinary *raw* assets (how the admin upload API stores the resume)
+// reject transformation flags with a 400 "Invalid flag in transformation"
+// error, so those URLs are returned unchanged — forced download for raw
+// files is handled by the streaming `/api/resume/download` route instead.
+// Other hosts are returned unchanged. Returns null when there is no
+// usable resume URL.
 export function buildResumeDownloadUrl(resumeUrl) {
   if (typeof resumeUrl !== "string") return null;
 
@@ -55,21 +61,21 @@ export function buildResumeDownloadUrl(resumeUrl) {
 
   if (
     trimmed.includes("res.cloudinary.com") &&
-    trimmed.includes("/upload/")
+    trimmed.includes("/image/upload/")
   ) {
     if (trimmed.includes("/fl_attachment")) return trimmed;
 
     return trimmed.replace(
-      "/upload/",
-      `/upload/fl_attachment:${RESUME_FILE_NAME}/`,
+      "/image/upload/",
+      `/image/upload/fl_attachment:${RESUME_FILE_NAME}/`,
     );
   }
 
   return trimmed;
 }
 
-// Whether the profile already has the rounded `fl_attachment` marker used
-// by the legacy navbar/hero download attribute.
+// Whether the URL is a Cloudinary upload asset that can be rendered with
+// `next/image` (the only remote image host configured in next.config.mjs).
 export function isCloudinaryUploadUrl(url) {
   return (
     typeof url === "string" &&

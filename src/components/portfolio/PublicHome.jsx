@@ -1,7 +1,10 @@
 
 import PublicNavbar from "@/components/portfolio/PublicNavbar";
 import PublicSocialLinks from "@/components/portfolio/PublicSocialLinks";
-import { resolveImageUrl } from "@/lib/utils";
+import {
+  isCloudinaryUploadUrl,
+  resolveImageUrl,
+} from "@/lib/utils";
 import { connection } from "next/server";
 
 import {
@@ -109,11 +112,12 @@ await connection();
     });
   }
 
-  // A reusable, absolute download URL for the resume (null when absent).
-  // Uses the `fl_attachment` transformation so the file downloads as a
-  // PDF with a friendly name, even outside the home page.
-
-    
+  // A renderable profile photo URL (null for HTML pages or empty values).
+  // `next/image` only supports hosts configured in next.config.mjs, so any
+  // other image host falls back to a plain <img> instead of crashing the
+  // whole page with an unconfigured-host error.
+  const profileImageUrl = resolveImageUrl(profile.profileImage?.url);
+  const profileImageIsCloudinary = isCloudinaryUploadUrl(profileImageUrl);
 
   return (
     <>
@@ -174,15 +178,23 @@ await connection();
 
             {/* Profile Image */}
             <div className="flex justify-center md:justify-end">
-              {profile.profileImage?.url ? (
+              {profileImageUrl ? (
                 <div className="relative h-64 w-64 overflow-hidden rounded-full border-8 border-slate-100 bg-slate-100 shadow-xl sm:h-80 sm:w-80">
-                 <Image
-  src={profile.profileImage.url}
-  alt="Profile photo"
-  fill
-  sizes="(max-width: 640px) 256px, 320px"
-  className="object-cover"
-/>
+                  {profileImageIsCloudinary ? (
+                    <Image
+                      src={profileImageUrl}
+                      alt={profile.profileImage.alt || "Profile photo"}
+                      fill
+                      sizes="(max-width: 640px) 256px, 320px"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <img
+                      src={profileImageUrl}
+                      alt={profile.profileImage.alt || "Profile photo"}
+                      className="h-full w-full object-cover"
+                    />
+                  )}
                 </div>
               ) : (
                 <div className="flex h-64 w-64 items-center justify-center rounded-full border-8 border-slate-100 bg-slate-100 text-7xl font-bold text-slate-400 shadow-xl sm:h-80 sm:w-80">

@@ -142,16 +142,13 @@ export async function POST(request) {
           ? "toufique-portfolio/profile"
           : "toufique-portfolio/projects";
 
-      const extension =
-        file.type === "image/png"
-          ? "png"
-          : file.type === "image/webp"
-            ? "webp"
-            : "jpg";
-
+      // Do NOT include a file extension in the image public_id: Cloudinary
+      // appends the real format itself, and an embedded extension is stored
+      // as part of the ID, producing broken double-extension delivery URLs
+      // such as `profile-image-x.jpg.jpg`.
       result = await uploadToCloudinary(buffer, {
         folder,
-        public_id: `${kind}-${randomUUID()}.${extension}`,
+        public_id: `${kind}-${randomUUID()}`,
         resource_type: "image",
         type: "upload",
         overwrite: false,

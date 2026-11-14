@@ -3,6 +3,12 @@ import { requireAdmin } from "@/lib/admin-auth";
 import { getProfile } from "@/lib/services/profile.service";
 import ProfileForm from "@/components/admin/profile/ProfileForm";
 
+// NOTE: `instant = false` opts this page out of instant-navigation
+// validation — the session check and profile read must block at request
+// time by design (the dashboard layout's `instant = false` only applies
+// to the layout segment, not to child pages).
+export const instant = false;
+
 export const metadata = {
   title: "Manage Profile | Admin",
 };

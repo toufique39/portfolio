@@ -1,17 +1,29 @@
 
+import { io } from "next/cache";
+
 import { getProfile } from "@/lib/services/profile.service";
 
 const MAX_RESUME_SIZE = 10 * 1024 * 1024;
 
+// Resolve the original PDF URL from a stored Cloudinary raw asset URL,
+// stripping any injected transformation segments. Returns null when the
+// stored URL is not a usable Cloudinary raw upload so the caller can
+// respond with a clear error instead of a generic 500.
 function getOriginalResumeUrl(resumeUrl) {
-  const url = new URL(resumeUrl);
+  let url;
+
+  try {
+    url = new URL(resumeUrl);
+  } catch {
+    return null;
+  }
 
   // Only allow your own Cloudinary account.
   if (
     url.protocol !== "https:" ||
     url.hostname !== "res.cloudinary.com"
   ) {
-    throw new Error("Invalid resume storage URL.");
+    return null;
   }
 
   const parts = url.pathname.split("/").filter(Boolean);
@@ -23,31 +35,32 @@ function getOriginalResumeUrl(resumeUrl) {
     parts[1] !== "raw" ||
     parts[2] !== "upload"
   ) {
-    throw new Error("Invalid Cloudinary resume asset.");
+    return null;
   }
 
   const uploadIndex = parts.indexOf("upload");
 
-  // Locate Cloudinary's version segment, e.g. v1793967315.
+  // Locate Cloudinary's version segment, e.g. v1793967315, if present.
   const versionIndex = parts.findIndex(
     (part, index) =>
       index > uploadIndex && /^v\d+$/.test(part)
   );
 
-  if (versionIndex === -1) {
-    throw new Error("Resume asset version was not found.");
-  }
-
-  // Remove all transformations between "upload" and the version.
-  const originalParts = [
-    ...parts.slice(0, uploadIndex + 1),
-    ...parts.slice(versionIndex),
-  ];
+  // Remove all transformations between "upload" and the version. A
+  // version-less URL (older or manually created assets) is already the
+  // original file, so it is used as-is.
+  const originalParts =
+    versionIndex === -1
+      ? parts
+      : [
+          ...parts.slice(0, uploadIndex + 1),
+          ...parts.slice(versionIndex),
+        ];
 
   const originalFilename = originalParts.at(-1);
 
   if (!originalFilename?.toLowerCase().endsWith(".pdf")) {
-    throw new Error("The stored resume must be a PDF file.");
+    return null;
   }
 
   url.pathname = `/${originalParts.join("/")}`;
@@ -56,6 +69,10 @@ function getOriginalResumeUrl(resumeUrl) {
 }
 
 export async function GET() {
+  // Ping the DB and fetch Cloudinary per request, never during the
+  // build-time prerender probe.
+  await io();
+
   try {
     const profile = await getProfile();
 
@@ -69,8 +86,23 @@ export async function GET() {
       );
     }
 
-    // Resolve the original PDF URL, not the broken transformed URL.
+    // Resolve the original PDF URL, not a transformed URL.
     const originalUrl = getOriginalResumeUrl(profile.resumeUrl);
+
+    if (!originalUrl) {
+      console.error(
+        "Stored resume URL is not a valid Cloudinary raw PDF asset:",
+        profile.resumeUrl
+      );
+
+      return Response.json(
+        {
+          success: false,
+          message: "The stored resume link is invalid.",
+        },
+        { status: 502 }
+      );
+    }
 
     const upstream = await fetch(originalUrl, {
       cache: "no-store",

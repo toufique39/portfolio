@@ -5,6 +5,9 @@ import {
 } from "@/lib/portfolio-collections";
 import SocialLinksManager from "@/components/admin/social-links/SocialLinksManager";
 
+// Data reads must block at request time (see dashboard layout note).
+export const instant = false;
+
 export default async function SocialLinksPage() {
   await requireAdmin();
 

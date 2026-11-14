@@ -5,6 +5,9 @@ import {
 } from "@/lib/portfolio-collections";
 import EducationManager from "@/components/admin/education/EducationManager";
 
+// Data reads must block at request time (see dashboard layout note).
+export const instant = false;
+
 export default async function EducationPage() {
   await requireAdmin();
 

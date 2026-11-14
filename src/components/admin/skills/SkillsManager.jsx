@@ -4,6 +4,7 @@
 import { useState } from "react";
 
 import { notifyError, notifySuccess } from "@/lib/notify";
+import { handleAdminSessionExpired } from "@/lib/admin-session-client";
 
 const categories = [
   "frontend",
@@ -97,6 +98,11 @@ export default function SkillsManager({ initialSkills = [] }) {
 
       const result = await response.json();
 
+      if (response.status === 401) {
+        handleAdminSessionExpired();
+        return;
+      }
+
       if (!response.ok || !result.success) {
         throw new Error(result.message || "Failed to save skill.");
       }
@@ -145,6 +151,11 @@ export default function SkillsManager({ initialSkills = [] }) {
       });
 
       const result = await response.json();
+
+      if (response.status === 401) {
+        handleAdminSessionExpired();
+        return;
+      }
 
       if (!response.ok || !result.success) {
         throw new Error(result.message || "Failed to delete skill.");

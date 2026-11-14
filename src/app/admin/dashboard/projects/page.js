@@ -5,6 +5,9 @@ import {
 } from "@/lib/portfolio-collections";
 import ProjectsManager from "@/components/admin/projects/ProjectsManager";
 
+// Data reads must block at request time (see dashboard layout note).
+export const instant = false;
+
 export default async function ProjectsPage() {
   await requireAdmin();
 
