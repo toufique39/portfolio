@@ -110,6 +110,7 @@ export async function getPublicProjects() {
           shortDescription: 1,
           technologies: 1,
           coverImage: 1,
+          githubUrl: 1,
           status: 1,
           sortOrder: 1,
           updatedAt: 1,

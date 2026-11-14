@@ -31,6 +31,18 @@ export async function POST(request) {
 
     // 2. Read and validate data
     const body = await request.json();
+
+    // 3. Honeypot: silently accept bot submissions without saving.
+    // Checked on the raw body BEFORE validation — the schema rejects a
+    // non-empty `website` (max length 0), so validating first would turn
+    // bot submissions into a 400 instead of a silent success.
+    if (body?.website) {
+      return jsonResponse({
+        success: true,
+        message: "Your message has been received.",
+      });
+    }
+
     const validation = contactMessageSchema.safeParse(body);
 
     if (!validation.success) {
@@ -45,15 +57,7 @@ export async function POST(request) {
       );
     }
 
-    const { name, email, subject, message, website } = validation.data;
-
-    // 3. Honeypot: silently accept bot submissions without saving
-    if (website) {
-      return jsonResponse({
-        success: true,
-        message: "Your message has been received.",
-      });
-    }
+    const { name, email, subject, message } = validation.data;
 
     // 4. Save the message first, so email failure doesn't lose it
     const collection = await getCollection(

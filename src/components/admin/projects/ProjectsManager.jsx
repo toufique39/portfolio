@@ -47,6 +47,26 @@ function toFormData(project) {
   };
 }
 
+// Cloudinary publicIds are not shown in the form (users may also paste
+// external URLs), so they are carried separately: when a saved URL is
+// reused unchanged while editing, its original publicId is re-attached.
+// Otherwise editing a project would replace the cover/gallery objects and
+// silently drop the stored publicIds.
+function getOriginalPublicIds(project) {
+  const coverPublicId =
+    project?.coverImage?.url && project?.coverImage?.publicId
+      ? { [project.coverImage.url]: project.coverImage.publicId }
+      : {};
+
+  const galleryPublicIds = Object.fromEntries(
+    (project?.gallery || [])
+      .filter((image) => image.url && image.publicId)
+      .map((image) => [image.url, image.publicId])
+  );
+
+  return { ...galleryPublicIds, ...coverPublicId };
+}
+
 function toArray(value) {
   return value
     .split(/\r?\n/)
@@ -58,10 +78,16 @@ export default function ProjectsManager({ initialProjects = [] }) {
   const [projects, setProjects] = useState(initialProjects);
   const [formData, setFormData] = useState(initialForm);
   const [editingId, setEditingId] = useState(null);
+  // The original document being edited, used to preserve Cloudinary
+  // publicIds when saved image URLs are reused unchanged.
+  const [editingProject, setEditingProject] = useState(null);
   const [loading, setLoading] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
+  // publicIds of assets uploaded during this session (URL -> publicId), so
+  // newly uploaded images keep their storage reference after saving.
+  const [uploadedPublicIds, setUploadedPublicIds] = useState({});
 
   const inputClass =
     "w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
@@ -81,10 +107,13 @@ export default function ProjectsManager({ initialProjects = [] }) {
   function resetForm() {
     setFormData(initialForm);
     setEditingId(null);
+    setEditingProject(null);
+    setUploadedPublicIds({});
   }
 
   function handleEdit(project) {
     setEditingId(project.id);
+    setEditingProject(project);
     setFormData(toFormData(project));
 
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -105,6 +134,13 @@ export default function ProjectsManager({ initialProjects = [] }) {
         ...prev,
         coverImageUrl: asset.url,
       }));
+
+      if (asset.publicId) {
+        setUploadedPublicIds((prev) => ({
+          ...prev,
+          [asset.url]: asset.publicId,
+        }));
+      }
 
       notifySuccess(
         "Cover image uploaded",
@@ -129,6 +165,7 @@ export default function ProjectsManager({ initialProjects = [] }) {
     setUploadingGallery(true);
 
     const urls = [];
+    const uploadedAssets = [];
     const failures = [];
 
     try {
@@ -137,6 +174,7 @@ export default function ProjectsManager({ initialProjects = [] }) {
           const asset = await uploadAdminFile(file, "gallery-image");
 
           urls.push(asset.url);
+          uploadedAssets.push(asset);
         } catch (err) {
           failures.push(`${file.name}: ${err.message || "Upload failed"}`);
         }
@@ -147,6 +185,18 @@ export default function ProjectsManager({ initialProjects = [] }) {
           ...prev,
           galleryUrls: [...toArray(prev.galleryUrls), ...urls].join("\n"),
         }));
+
+        setUploadedPublicIds((prev) => {
+          const next = { ...prev };
+
+          for (const asset of uploadedAssets) {
+            if (asset.publicId) {
+              next[asset.url] = asset.publicId;
+            }
+          }
+
+          return next;
+        });
 
         notifySuccess(
           "Gallery images uploaded",
@@ -170,6 +220,24 @@ export default function ProjectsManager({ initialProjects = [] }) {
     try {
       const galleryUrls = toArray(formData.galleryUrls);
 
+      // Keep the stored publicId for uploaded assets whose URL is reused
+      // unchanged; newly pasted or uploaded URLs have no publicId yet.
+      const originalPublicIds = {
+        ...uploadedPublicIds,
+        ...(editingId ? getOriginalPublicIds(editingProject) : {}),
+      };
+
+      const coverUrl = formData.coverImageUrl.trim();
+
+      const coverImage = {
+        url: coverUrl,
+        alt: formData.title.trim(),
+      };
+
+      if (originalPublicIds[coverUrl]) {
+        coverImage.publicId = originalPublicIds[coverUrl];
+      }
+
       const payload = {
         title: formData.title.trim(),
         slug: formData.slug.trim().toLowerCase(),
@@ -181,14 +249,16 @@ export default function ProjectsManager({ initialProjects = [] }) {
         futurePlans: toArray(formData.futurePlans),
         liveUrl: formData.liveUrl.trim(),
         githubUrl: formData.githubUrl.trim(),
-        coverImage: {
-          url: formData.coverImageUrl.trim(),
-          alt: formData.title.trim(),
-        },
-        gallery: galleryUrls.map((url) => ({
-          url,
-          alt: formData.title.trim(),
-        })),
+        coverImage,
+        gallery: galleryUrls.map((url) => {
+          const image = { url, alt: formData.title.trim() };
+
+          if (originalPublicIds[url]) {
+            image.publicId = originalPublicIds[url];
+          }
+
+          return image;
+        }),
         status: formData.status,
         isPublished: formData.isPublished,
         sortOrder: Number(formData.sortOrder),
